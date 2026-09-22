@@ -1,19 +1,34 @@
 import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../utils/jwt";
+import { findSessionByToken, touchSession } from "../repositories/sessions.repository";
+import { findUserById } from "../repositories/users.repository";
 import { UnauthorizedError, ForbiddenError } from "../types/errors";
 
-export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization;
   if (!header || !header.startsWith("Bearer ")) {
-    throw new UnauthorizedError("Missing or malformed Authorization header");
+    next(new UnauthorizedError("Missing or malformed Authorization header"));
+    return;
   }
-
   const token = header.slice("Bearer ".length);
+
   try {
-    req.user = verifyToken(token);
+    const session = await findSessionByToken(token);
+    if (!session) {
+      next(new UnauthorizedError("Invalid or expired session"));
+      return;
+    }
+    // Role is read fresh from the DB on every request — no stale role baked into a token,
+    // so become-seller (or any future role change) takes effect immediately.
+    const user = await findUserById(session.user_id);
+    if (!user) {
+      next(new UnauthorizedError("Invalid or expired session"));
+      return;
+    }
+    req.user = { sub: user.id, role: user.role };
+    touchSession(session.id).catch(() => {}); // best-effort, don't block the request on this
     next();
-  } catch {
-    throw new UnauthorizedError("Invalid or expired token");
+  } catch (err) {
+    next(err);
   }
 }
 
@@ -21,10 +36,12 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
 export function requireRole(...roles: Array<"buyer" | "seller" | "admin">) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
-      throw new UnauthorizedError();
+      next(new UnauthorizedError());
+      return;
     }
     if (!roles.includes(req.user.role)) {
-      throw new ForbiddenError(`Requires role: ${roles.join(" or ")}`);
+      next(new ForbiddenError(`Requires role: ${roles.join(" or ")}`));
+      return;
     }
     next();
   };

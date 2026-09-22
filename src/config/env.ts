@@ -17,8 +17,7 @@ export const env = {
   databaseUrl: required("DATABASE_URL"),
   pgSsl: process.env.PGSSL === "true",
 
-  jwtSecret: required("JWT_SECRET"),
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
+  sessionTtlDays: process.env.SESSION_TTL_DAYS ? Number(process.env.SESSION_TTL_DAYS) : 7,
 
   argon2: {
     memoryCost: process.env.ARGON2_MEMORY_COST ? Number(process.env.ARGON2_MEMORY_COST) : 19456,
