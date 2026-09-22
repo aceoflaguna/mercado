@@ -19,14 +19,15 @@ function slugify(name: string): string {
 }
 
 export async function getProducts(req: Request, res: Response): Promise<void> {
-  const { search, categoryId, page, pageSize } = req.query as unknown as {
+  const { search, categoryId, sellerId, page, pageSize } = req.query as unknown as {
     search?: string;
     categoryId?: number;
+    sellerId?: string;
     page: number;
     pageSize: number;
   };
 
-  const { items, total } = await listProducts({ search, categoryId, page, pageSize });
+  const { items, total } = await listProducts({ search, categoryId, sellerId, page, pageSize });
 
   res.status(200).json({
     status: "ok",

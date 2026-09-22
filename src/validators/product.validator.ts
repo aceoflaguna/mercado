@@ -22,6 +22,7 @@ export const updateProductSchema = z.object({
 export const listProductsQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   categoryId: z.coerce.number().int().positive().optional(),
+  sellerId: z.string().uuid().optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });
