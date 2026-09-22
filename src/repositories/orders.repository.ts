@@ -108,3 +108,68 @@ export async function listOrderItems(orderId: string): Promise<OrderItemRow[]> {
   );
   return result.rows;
 }
+
+/** Orders containing at least one item from this seller, still unfulfilled. */
+export async function listPendingOrdersForSeller(sellerId: string): Promise<OrderRow[]> {
+  const result = await query<OrderRow>(
+    `SELECT DISTINCT o.id, o.user_id, o.status, o.total_cents, o.shipping_address, o.created_at, o.updated_at
+     FROM orders o
+     JOIN order_items oi ON oi.order_id = o.id
+     WHERE oi.seller_id = $1 AND o.status = 'pending'
+     ORDER BY o.created_at DESC`,
+    [sellerId]
+  );
+  return result.rows;
+}
+
+/** Line items within one order that belong to this seller (orders can span multiple sellers). */
+export async function listOrderItemsForSeller(
+  orderId: string,
+  sellerId: string
+): Promise<OrderItemRow[]> {
+  const result = await query<OrderItemRow>(
+    `SELECT id, order_id, product_id, seller_id, product_name, unit_price_cents, quantity
+     FROM order_items WHERE order_id = $1 AND seller_id = $2`,
+    [orderId, sellerId]
+  );
+  return result.rows;
+}
+
+/** Buyer confirms delivery. No-ops (returns null) if not their order, or already completed/cancelled. */
+export async function markOrderCompleted(orderId: string, userId: string): Promise<OrderRow | null> {
+  const result = await query<OrderRow>(
+    `UPDATE orders SET status = 'completed', updated_at = now()
+     WHERE id = $1 AND user_id = $2 AND status NOT IN ('completed', 'cancelled')
+     RETURNING id, user_id, status, total_cents, shipping_address, created_at, updated_at`,
+    [orderId, userId]
+  );
+  return result.rows[0] ?? null;
+}
+
+export interface SoldItemRow extends OrderItemRow {
+  order_created_at: Date;
+  order_status: string;
+  buyer_id: string;
+  buyer_name: string;
+  buyer_email: string;
+}
+
+/**
+ * Every line item this seller has sold, with buyer + order context.
+ * Excludes cancelled orders — a cancelled order was never really "sold".
+ */
+export async function listSoldItemsForSeller(sellerId: string): Promise<SoldItemRow[]> {
+  const result = await query<SoldItemRow>(
+    `SELECT oi.id, oi.order_id, oi.product_id, oi.seller_id, oi.product_name,
+            oi.unit_price_cents, oi.quantity,
+            o.created_at AS order_created_at, o.status AS order_status,
+            u.id AS buyer_id, u.name AS buyer_name, u.email AS buyer_email
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     JOIN users u ON u.id = o.user_id
+     WHERE oi.seller_id = $1 AND o.status != 'cancelled'
+     ORDER BY o.created_at DESC`,
+    [sellerId]
+  );
+  return result.rows;
+}
