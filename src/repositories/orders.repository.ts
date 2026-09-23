@@ -2,7 +2,7 @@ import { PoolClient } from "pg";
 import { query, withTransaction } from "../config/db";
 import { getCartForUserTx, clearCart } from "./cart.repository";
 import { decrementStock } from "./products.repository";
-import { BadRequestError, ConflictError } from "../types/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "../types/errors";
 
 export interface OrderRow {
   id: string;
@@ -146,6 +146,73 @@ export async function markOrderCompleted(orderId: string, userId: string): Promi
   return result.rows[0] ?? null;
 }
 
+/** Fetch an order regardless of owner — needed to check seller/admin authorization before cancelling. */
+export async function findOrderByIdAny(orderId: string): Promise<OrderRow | null> {
+  const result = await query<OrderRow>(
+    `SELECT id, user_id, status, total_cents, shipping_address, created_at, updated_at
+     FROM orders WHERE id = $1`,
+    [orderId]
+  );
+  return result.rows[0] ?? null;
+}
+
+const CANCELLABLE_STATUSES = ["pending", "paid"];
+
+/**
+ * Cancels an order and restores stock for every item in it — the mirror image
+ * of checkout's stock decrement. Runs in one transaction: locks the order row,
+ * re-checks it's still in a cancellable state (guards against a race with
+ * mark-delivered or a concurrent cancel), restores stock per item, flips status.
+ * Cancelling affects the whole order, not just one seller's items in it — a
+ * multi-seller cart is cancelled as a unit.
+ */
+export async function cancelOrder(orderId: string): Promise<OrderRow> {
+  return withTransaction(async (client: PoolClient) => {
+    const orderResult = await client.query<OrderRow>(
+      `SELECT id, user_id, status, total_cents, shipping_address, created_at, updated_at
+       FROM orders WHERE id = $1 FOR UPDATE`,
+      [orderId]
+    );
+    const order = orderResult.rows[0];
+    if (!order) {
+      throw new NotFoundError("Order not found");
+    }
+    if (!CANCELLABLE_STATUSES.includes(order.status)) {
+      throw new ConflictError(`Order is "${order.status}" and can no longer be cancelled`);
+    }
+
+    const itemsResult = await client.query<{ product_id: string; quantity: number }>(
+      `SELECT product_id, quantity FROM order_items WHERE order_id = $1`,
+      [orderId]
+    );
+    for (const item of itemsResult.rows) {
+      await client.query(`UPDATE products SET stock = stock + $2, updated_at = now() WHERE id = $1`, [
+        item.product_id,
+        item.quantity,
+      ]);
+    }
+
+    const updated = await client.query<OrderRow>(
+      `UPDATE orders SET status = 'cancelled', updated_at = now()
+       WHERE id = $1
+       RETURNING id, user_id, status, total_cents, shipping_address, created_at, updated_at`,
+      [orderId]
+    );
+    return updated.rows[0];
+  });
+}
+
+/** Seller marks an order as shipped. Only valid from pending/paid — not from shipped/completed/cancelled. */
+export async function markOrderShipped(orderId: string): Promise<OrderRow | null> {
+  const result = await query<OrderRow>(
+    `UPDATE orders SET status = 'shipped', updated_at = now()
+     WHERE id = $1 AND status IN ('pending', 'paid')
+     RETURNING id, user_id, status, total_cents, shipping_address, created_at, updated_at`,
+    [orderId]
+  );
+  return result.rows[0] ?? null;
+}
+
 export interface SoldItemRow extends OrderItemRow {
   order_created_at: Date;
   order_status: string;
@@ -173,3 +240,4 @@ export async function listSoldItemsForSeller(sellerId: string): Promise<SoldItem
   );
   return result.rows;
 }
+

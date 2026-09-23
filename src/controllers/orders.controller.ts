@@ -3,13 +3,15 @@ import {
   checkout,
   listOrdersForUser,
   findOrderById,
+  findOrderByIdAny,
   listOrderItems,
   listPendingOrdersForSeller,
   listOrderItemsForSeller,
   markOrderCompleted,
-  listSoldItemsForSeller
+  listSoldItemsForSeller,
+  cancelOrder,
 } from "../repositories/orders.repository";
-import { NotFoundError, ConflictError } from "../types/errors";
+import { NotFoundError, ConflictError, ForbiddenError } from "../types/errors";
 
 
 export async function postCheckout(req: Request, res: Response): Promise<void> {
@@ -65,4 +67,27 @@ export async function getSellerSoldItems(req: Request, res: Response): Promise<v
   const sellerId = req.user!.sub;
   const items = await listSoldItemsForSeller(sellerId);
   res.status(200).json({ status: "ok", data: items });
+}
+
+export async function postCancelOrder(req: Request, res: Response): Promise<void> {
+  const order = await findOrderByIdAny(req.params.id);
+  if (!order) {
+    throw new NotFoundError("Order not found");
+  }
+
+  const isOwner = order.user_id === req.user!.sub;
+  const isAdmin = req.user!.role === "admin";
+
+  let isSellerOnOrder = false;
+  if (!isOwner && !isAdmin && req.user!.role === "seller") {
+    const items = await listOrderItems(order.id);
+    isSellerOnOrder = items.some((item) => item.seller_id === req.user!.sub);
+  }
+
+  if (!isOwner && !isAdmin && !isSellerOnOrder) {
+    throw new ForbiddenError("You are not part of this order");
+  }
+
+  const cancelled = await cancelOrder(order.id);
+  res.status(200).json({ status: "ok", data: cancelled });
 }
