@@ -241,3 +241,21 @@ export async function listSoldItemsForSeller(sellerId: string): Promise<SoldItem
   return result.rows;
 }
 
+/**
+ * Every line item this seller has cancelled, with buyer or seller 
+ */
+export async function listCancelledItemsForSeller(sellerId: string): Promise<SoldItemRow[]> {
+  const result = await query<SoldItemRow>(
+    `SELECT oi.id, oi.order_id, oi.product_id, oi.seller_id, oi.product_name,
+            oi.unit_price_cents, oi.quantity,
+            o.created_at AS order_created_at, o.status AS order_status,
+            u.id AS buyer_id, u.name AS buyer_name, u.email AS buyer_email
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     JOIN users u ON u.id = o.user_id
+     WHERE oi.seller_id = $1 AND o.status = 'cancelled'
+     ORDER BY o.created_at DESC`,
+    [sellerId]
+  );
+  return result.rows;
+}

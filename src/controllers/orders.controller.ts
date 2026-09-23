@@ -10,6 +10,7 @@ import {
   markOrderCompleted,
   markOrderShipped,
   listSoldItemsForSeller,
+  listCancelledItemsForSeller,
   cancelOrder,
 } from "../repositories/orders.repository";
 import { NotFoundError, ConflictError, ForbiddenError } from "../types/errors";
@@ -67,6 +68,12 @@ export async function patchOrderStatus(req: Request, res: Response): Promise<voi
 export async function getSellerSoldItems(req: Request, res: Response): Promise<void> {
   const sellerId = req.user!.sub;
   const items = await listSoldItemsForSeller(sellerId);
+  res.status(200).json({ status: "ok", data: items });
+}
+
+export async function getSellerCancelledItems(req: Request, res: Response): Promise<void> {
+  const sellerId = req.user!.sub;
+  const items = await listCancelledItemsForSeller(sellerId);
   res.status(200).json({ status: "ok", data: items });
 }
 
