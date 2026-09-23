@@ -8,6 +8,7 @@ import {
   listPendingOrdersForSeller,
   listOrderItemsForSeller,
   markOrderCompleted,
+  markOrderShipped,
   listSoldItemsForSeller,
   cancelOrder,
 } from "../repositories/orders.repository";
@@ -90,4 +91,27 @@ export async function postCancelOrder(req: Request, res: Response): Promise<void
 
   const cancelled = await cancelOrder(order.id);
   res.status(200).json({ status: "ok", data: cancelled });
+}
+
+export async function postShipOrder(req: Request, res: Response): Promise<void> {
+  const order = await findOrderByIdAny(req.params.id);
+  if (!order) {
+    throw new NotFoundError("Order not found");
+  }
+
+  const isAdmin = req.user!.role === "admin";
+  let isSellerOnOrder = false;
+  if (!isAdmin) {
+    const items = await listOrderItems(order.id);
+    isSellerOnOrder = items.some((item) => item.seller_id === req.user!.sub);
+  }
+  if (!isAdmin && !isSellerOnOrder) {
+    throw new ForbiddenError("You are not a seller on this order");
+  }
+
+  const updated = await markOrderShipped(order.id);
+  if (!updated) {
+    throw new ConflictError(`Order is "${order.status}" and can't be marked shipped`);
+  }
+  res.status(200).json({ status: "ok", data: updated });
 }

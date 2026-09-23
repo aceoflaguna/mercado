@@ -7,6 +7,7 @@ import {
   getSellerSoldItems,
   patchOrderStatus,
   postCancelOrder,
+  postShipOrder,
 } from "../controllers/orders.controller";
 
 import { asyncHandler } from "../middlewares/asyncHandler";
@@ -25,6 +26,7 @@ router.get("/", asyncHandler(getOrders));
 router.get("/:id", asyncHandler(getOrderById));
 router.patch("/:id/status", validate(updateOrderStatusSchema), asyncHandler(patchOrderStatus));
 router.post("/:id/cancel", asyncHandler(postCancelOrder));
+router.post("/:id/ship", requireRole("seller", "admin"), asyncHandler(postShipOrder));
 
 
 export default router;

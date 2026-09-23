@@ -115,7 +115,7 @@ export async function listPendingOrdersForSeller(sellerId: string): Promise<Orde
     `SELECT DISTINCT o.id, o.user_id, o.status, o.total_cents, o.shipping_address, o.created_at, o.updated_at
      FROM orders o
      JOIN order_items oi ON oi.order_id = o.id
-     WHERE oi.seller_id = $1 AND o.status = 'pending'
+     WHERE oi.seller_id = $1 AND o.status IN ('pending', 'paid', 'shipped')
      ORDER BY o.created_at DESC`,
     [sellerId]
   );
