@@ -9,7 +9,7 @@ import { registerSchema, loginSchema } from "../validators/auth.validator";
 const router = Router();
 
 // Slow down credential-guessing attacks without punishing normal use.
-const loginLimiter = rateLimit({
+const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: true,
@@ -17,8 +17,8 @@ const loginLimiter = rateLimit({
   message: { status: "error", message: "Too many login attempts. Try again later." },
 });
 
-router.post("/register", validate(registerSchema), asyncHandler(register));
-router.post("/login", loginLimiter, validate(loginSchema), asyncHandler(login));
+router.post("/register", limiter, validate(registerSchema), asyncHandler(register));
+router.post("/login", limiter, validate(loginSchema), asyncHandler(login));
 router.get("/me", requireAuth, asyncHandler(me));
 router.post("/logout", requireAuth, asyncHandler(logout));
 router.post("/become-seller", requireAuth, asyncHandler(becomeSeller));
