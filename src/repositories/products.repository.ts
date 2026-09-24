@@ -16,6 +16,10 @@ export interface ProductRow {
   updated_at: Date;
 }
 
+export interface ProductWithSellerRow extends ProductRow {
+  seller_name: string;
+}
+
 export interface ListProductsParams {
   search?: string;
   categoryId?: number;
@@ -66,11 +70,14 @@ export async function listProducts(
   return { items: itemsResult.rows, total };
 }
 
-export async function findProductById(id: string): Promise<ProductRow | null> {
-  const result = await query<ProductRow>(
-    `SELECT id, seller_id, category_id, name, slug, description, price_cents,
-            stock, image_url, is_active, created_at, updated_at
-     FROM products WHERE id = $1`,
+export async function findProductById(id: string): Promise<ProductWithSellerRow | null> {
+  const result = await query<ProductWithSellerRow>(
+    `SELECT p.id, p.seller_id, u.name AS seller_name, p.category_id, p.name, p.slug,
+            p.description, p.price_cents, p.stock, p.image_url, p.is_active,
+            p.created_at, p.updated_at
+     FROM products p
+     JOIN users u ON u.id = p.seller_id
+     WHERE p.id = $1`,
     [id]
   );
   return result.rows[0] ?? null;
