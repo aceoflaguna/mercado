@@ -17,15 +17,18 @@ export interface CartItemWithProduct extends CartItemRow {
   stock: number;
   image_url: string | null;
   is_active: boolean;
+  seller_id: string;
+  seller_name: string;
 }
 
 export async function getCartForUser(userId: string): Promise<CartItemWithProduct[]> {
   const result = await query<CartItemWithProduct>(
     `SELECT ci.id, ci.user_id, ci.product_id, ci.quantity, ci.created_at, ci.updated_at,
             p.name AS product_name, p.slug AS product_slug, p.price_cents,
-            p.stock, p.image_url, p.is_active
+            p.stock, p.image_url, p.is_active, p.seller_id, u.name AS seller_name
      FROM cart_items ci
      JOIN products p ON p.id = ci.product_id
+     JOIN users u ON u.id = p.seller_id
      WHERE ci.user_id = $1
      ORDER BY ci.created_at DESC`,
     [userId]

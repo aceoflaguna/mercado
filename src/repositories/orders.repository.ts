@@ -41,6 +41,13 @@ export async function checkout(userId: string, shippingAddress: string): Promise
       throw new BadRequestError("Cart is empty");
     }
 
+    const distinctSellerIds = new Set(cartItems.map((item) => item.seller_id));
+    if (distinctSellerIds.size > 1) {
+      throw new BadRequestError(
+        "Your cart has items from multiple sellers. Please check out one seller at a time."
+      );
+    }
+
     const inactiveItem = cartItems.find((item) => !item.is_active);
     if (inactiveItem) {
       throw new ConflictError(`Product "${inactiveItem.product_name}" is no longer available`);
