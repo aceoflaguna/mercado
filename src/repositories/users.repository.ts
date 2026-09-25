@@ -62,3 +62,17 @@ export async function updateUserRole(id: string, role: UserRole): Promise<UserRo
   );
   return result.rows[0] ?? null;
 }
+
+export async function updateUserProfile(id: string, name: string): Promise<UserRow | null> {
+  const result = await query<UserRow>(
+    `UPDATE users SET name = $2, updated_at = now()
+     WHERE id = $1
+     RETURNING id, email, password_hash, name, role, created_at, updated_at`,
+    [id, name]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function updateUserPassword(id: string, passwordHash: string): Promise<void> {
+  await query(`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, [id, passwordHash]);
+}

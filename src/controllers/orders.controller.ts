@@ -14,15 +14,43 @@ import {
   cancelOrder,
 } from "../repositories/orders.repository";
 import { NotFoundError, ConflictError, ForbiddenError } from "../types/errors";
+import { findAddressById, getDefaultAddress } from "../repositories/addresses.repository";
+import { BadRequestError } from "../types/errors";
 
+// export async function postCheckout(req: Request, res: Response): Promise<void> {
+//   const userId = req.user!.sub;
+//   const { shippingAddress } = req.body as { shippingAddress: string };
+
+//   const order = await checkout(userId, shippingAddress);
+//   const items = await listOrderItems(order.id);
+
+//   res.status(201).json({ status: "ok", data: { ...order, items } });
+// }
 
 export async function postCheckout(req: Request, res: Response): Promise<void> {
   const userId = req.user!.sub;
-  const { shippingAddress } = req.body as { shippingAddress: string };
+  const { addressId, shippingAddress: freeformAddress } = req.body as {
+    addressId?: string;
+    shippingAddress?: string;
+  };
+
+  let shippingAddress: string;
+  if (addressId) {
+    const address = await findAddressById(addressId, userId);
+    if (!address) throw new NotFoundError("Address not found");
+    shippingAddress = address.full_address;
+  } else if (freeformAddress) {
+    shippingAddress = freeformAddress;
+  } else {
+    const defaultAddress = await getDefaultAddress(userId);
+    if (!defaultAddress) {
+      throw new BadRequestError("No address provided and no default address saved");
+    }
+    shippingAddress = defaultAddress.full_address;
+  }
 
   const order = await checkout(userId, shippingAddress);
   const items = await listOrderItems(order.id);
-
   res.status(201).json({ status: "ok", data: { ...order, items } });
 }
 

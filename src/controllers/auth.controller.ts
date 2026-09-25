@@ -1,13 +1,16 @@
 import { Request, Response } from "express";
 import { hashPassword, verifyPassword } from "../utils/argon";
-import { createSession, deleteSessionByToken } from "../repositories/sessions.repository";
+import { createSession, deleteSessionByToken, deleteAllSessionsForUser } from "../repositories/sessions.repository";
 import {
   createUser,
   findUserByEmail,
   findUserById,
   updateUserRole,
+  updateUserProfile,
+  updateUserPassword,
   toPublicUser,
 } from "../repositories/users.repository";
+
 import { UnauthorizedError, NotFoundError, BadRequestError } from "../types/errors";
 
 export async function register(req: Request, res: Response): Promise<void> {
@@ -77,4 +80,40 @@ export async function logout(req: Request, res: Response): Promise<void> {
   const token = header.slice("Bearer ".length);
   await deleteSessionByToken(token);
   res.status(204).send();
+}
+
+export async function patchProfile(req: Request, res: Response): Promise<void> {
+  const { name } = req.body as { name: string };
+  const updated = await updateUserProfile(req.user!.sub, name);
+  if (!updated) throw new NotFoundError("User not found");
+  res.status(200).json({ status: "ok", data: toPublicUser(updated) });
+}
+
+export async function patchPassword(req: Request, res: Response): Promise<void> {
+  const { currentPassword, newPassword } = req.body as {
+    currentPassword: string;
+    newPassword: string;
+  };
+  const user = await findUserById(req.user!.sub);
+  if (!user) throw new NotFoundError("User not found");
+
+  const valid = await verifyPassword(user.password_hash, currentPassword);
+  if (!valid) throw new UnauthorizedError("Current password is incorrect");
+  if (currentPassword === newPassword) {
+    throw new BadRequestError("New password must be different from the current password");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await updateUserPassword(user.id, passwordHash);
+
+  // Changing the password invalidates every existing session (including this
+  // one) as a security measure, then immediately issues a fresh session for
+  // the device that just made the change, so the caller isn't logged out.
+  await deleteAllSessionsForUser(user.id);
+  const token = await createSession(user.id, {
+    userAgent: req.headers["user-agent"],
+    ip: req.ip,
+  });
+
+  res.status(200).json({ status: "ok", data: { token } });
 }

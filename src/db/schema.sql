@@ -89,3 +89,19 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
+CREATE TABLE IF NOT EXISTS addresses (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  label        VARCHAR(50) NOT NULL DEFAULT 'Home',
+  full_address TEXT NOT NULL,
+  is_default   BOOLEAN NOT NULL DEFAULT false,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_addresses_user_id ON addresses(user_id);
+
+-- Enforces "at most one default address per user" at the DB level, not just in app code.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_addresses_one_default_per_user
+  ON addresses(user_id) WHERE is_default;
