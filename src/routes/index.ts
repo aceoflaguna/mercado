@@ -7,6 +7,7 @@ import cartRoutes from "./cart.routes";
 import ordersRoutes from "./orders.routes";
 import addressesRoutes from "./addresses.routes";
 import auditLogsRoutes from "./audit-logs.routes";
+import conversationsRoutes from "./conversations.routes";
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use("/cart", cartRoutes);
 router.use("/orders", ordersRoutes);
 router.use("/addresses", addressesRoutes);
 router.use("/audit-logs", auditLogsRoutes);
+router.use("/conversations", conversationsRoutes);
 
 export default router;

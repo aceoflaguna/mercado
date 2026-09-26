@@ -124,3 +124,28 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_addresses_one_default_per_user
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_path ON audit_logs(path);
+
+-- messaging
+CREATE TABLE IF NOT EXISTS conversations (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  buyer_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  seller_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  product_id      UUID REFERENCES products(id) ON DELETE SET NULL,
+  last_message_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (buyer_id, seller_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_buyer ON conversations(buyer_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_seller ON conversations(seller_id);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body            TEXT NOT NULL,
+  read_at         TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);

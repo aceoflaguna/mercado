@@ -15,12 +15,14 @@ function redact(value: unknown): unknown {
   return result;
 }
 
-// Noisy, low-value polling — excluded to keep the log readable. Add to this
-// set if something else turns out to be high-volume and uninteresting.
-const EXCLUDED_PATHS = new Set(["/api/health"]);
+const EXCLUDED_PREFIXES = [
+  "/api/health",
+  "/api/conversations"
+];
 
 export function auditLog(req: Request, res: Response, next: NextFunction): void {
-  if (EXCLUDED_PATHS.has(req.path)) {
+  let pathRequest = req.path;
+  if (EXCLUDED_PREFIXES.some(p => pathRequest === p || pathRequest.startsWith(p + "/"))) {
     next();
     return;
   }
