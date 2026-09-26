@@ -26,7 +26,7 @@ export function auditLog(req: Request, res: Response, next: NextFunction): void 
   }
 
   const startedAt = Date.now();
-
+  let path = req.path;
   // 'finish' fires after the response is fully sent — by then requireAuth
   // (if this route has it) has already run and set req.user, so it's safe
   // to read here even though this middleware itself runs before routing.
@@ -34,7 +34,7 @@ export function auditLog(req: Request, res: Response, next: NextFunction): void 
     insertAuditLog({
       userId: req.user?.sub ?? null,
       method: req.method,
-      path: req.path,
+      path: path,
       statusCode: res.statusCode,
       requestBody: req.body && Object.keys(req.body).length > 0 ? redact(req.body) : null,
       queryParams: req.query && Object.keys(req.query).length > 0 ? redact(req.query) : null,
