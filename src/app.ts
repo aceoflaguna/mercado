@@ -5,6 +5,7 @@ import morgan from "morgan";
 import routes from "./routes";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
 import { env } from "./config/env";
+import { auditLog } from "./middlewares/audit.middleware";
 
 export function createApp(): Application {
   const app = express();
@@ -17,7 +18,8 @@ export function createApp(): Application {
 
   // Logging
   app.use(morgan(env.nodeEnv === "production" ? "combined" : "dev"));
-
+  app.use(auditLog);
+  
   // Routes
   app.use("/api", routes);
 
