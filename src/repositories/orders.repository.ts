@@ -19,6 +19,7 @@ export interface OrderItemRow {
   order_id: string;
   product_id: string;
   seller_id: string;
+  seller_name: string;
   product_name: string;
   unit_price_cents: string;
   quantity: number;
@@ -109,8 +110,11 @@ export async function findOrderById(orderId: string, userId: string): Promise<Or
 
 export async function listOrderItems(orderId: string): Promise<OrderItemRow[]> {
   const result = await query<OrderItemRow>(
-    `SELECT id, order_id, product_id, seller_id, product_name, unit_price_cents, quantity
-     FROM order_items WHERE order_id = $1`,
+    `SELECT oi.id, oi.order_id, oi.product_id, oi.seller_id, u.name AS seller_name,
+            oi.product_name, oi.unit_price_cents, oi.quantity
+     FROM order_items oi
+     JOIN users u ON u.id = oi.seller_id
+     WHERE oi.order_id = $1`,
     [orderId]
   );
   return result.rows;

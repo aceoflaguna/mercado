@@ -62,6 +62,7 @@ export async function me(req: Request, res: Response): Promise<void> {
  * Issues a fresh token since the role is embedded in the JWT payload.
  */
 export async function becomeSeller(req: Request, res: Response): Promise<void> {
+  // throw new BadRequestError(`Seller promotion is temporarily disabled.`);
   const userId = req.user!.sub;
   const user = await findUserById(userId);
   if (!user) {
