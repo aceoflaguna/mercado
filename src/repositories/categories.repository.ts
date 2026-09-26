@@ -22,6 +22,14 @@ export async function createCategory(name: string, slug: string): Promise<Catego
   return result.rows[0];
 }
 
+export async function updateCategory(id: number, name: string, slug: string): Promise<CategoryRow | null> {
+  const result = await query<CategoryRow>(
+    `UPDATE categories SET name = $2, slug = $3 WHERE id = $1 RETURNING id, name, slug, created_at`,
+    [id, name, slug]
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function findCategoryById(id: number): Promise<CategoryRow | null> {
   const result = await query<CategoryRow>(
     "SELECT id, name, slug, created_at FROM categories WHERE id = $1",

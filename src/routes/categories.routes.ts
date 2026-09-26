@@ -5,6 +5,8 @@ import { validate } from "../middlewares/validate";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware";
 import { createCategorySchema } from "../validators/category.validator";
 import rateLimit from "express-rate-limit";
+import { getCategories, postCategory, patchCategory } from "../controllers/categories.controller";
+import { createCategorySchema, updateCategorySchema } from "../validators/category.validator";
 
 // Slow down attacks without punishing normal use.
 const limiter = rateLimit({
@@ -24,6 +26,13 @@ router.post(
   requireRole("admin"),
   validate(createCategorySchema),
   asyncHandler(postCategory)
+);
+router.patch(
+  "/:id",
+  requireAuth,
+  requireRole("admin"),
+  validate(updateCategorySchema),
+  asyncHandler(patchCategory)
 );
 
 export default router;
