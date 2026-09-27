@@ -11,6 +11,8 @@ export interface UserRow {
   created_at: Date;
   updated_at: Date;
   email_verified_at: Date | null;
+  status: "active" | "suspended" | "banned" | "deactivated";
+  status_reason: string | null;
 }
 
 export type PublicUser = Omit<UserRow, "password_hash">;
@@ -30,7 +32,7 @@ export async function createUser(params: {
   const result = await query<UserRow>(
     `INSERT INTO users (email, password_hash, name, role)
      VALUES ($1, $2, $3, $4)
-     RETURNING id, email, password_hash, name, role, email_verified_at, created_at, updated_at`,
+     RETURNING id, email, password_hash, name, role, status, status_reason,  email_verified_at, created_at, updated_at`,
     [email, passwordHash, name, role]
   );
   return result.rows[0];
@@ -38,7 +40,7 @@ export async function createUser(params: {
 
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
   const result = await query<UserRow>(
-    `SELECT id, email, password_hash, name, role, email_verified_at, created_at, updated_at
+    `SELECT id, email, password_hash, name, role, status, status_reason, email_verified_at, created_at, updated_at
      FROM users WHERE email = $1`,
     [email]
   );
@@ -47,7 +49,7 @@ export async function findUserByEmail(email: string): Promise<UserRow | null> {
 
 export async function findUserById(id: string): Promise<UserRow | null> {
   const result = await query<UserRow>(
-    `SELECT id, email, password_hash, name, role, email_verified_at, created_at, updated_at
+    `SELECT id, email, password_hash, name, role, status, status_reason, email_verified_at, created_at, updated_at
      FROM users WHERE id = $1`,
     [id]
   );
@@ -58,7 +60,7 @@ export async function updateUserRole(id: string, role: UserRole): Promise<UserRo
   const result = await query<UserRow>(
     `UPDATE users SET role = $2, updated_at = now()
      WHERE id = $1
-     RETURNING id, email, password_hash, name, role, email_verified_at, created_at, updated_at`,
+     RETURNING id, email, password_hash, name, role, status, status_reason, email_verified_at, created_at, updated_at`,
     [id, role]
   );
   return result.rows[0] ?? null;
@@ -82,8 +84,55 @@ export async function markEmailVerified(id: string): Promise<UserRow | null> {
   const result = await query<UserRow>(
     `UPDATE users SET email_verified_at = now(), updated_at = now()
      WHERE id = $1
-     RETURNING id, email, password_hash, name, role, email_verified_at, created_at, updated_at`,
+     RETURNING id, email, password_hash, name, role, status, status_reason, email_verified_at, created_at, updated_at`,
     [id]
   );
   return result.rows[0] ?? null;
+}
+
+export type UserStatus = "active" | "suspended" | "banned" | "deactivated";
+
+export async function updateUserStatus(
+  id: string,
+  status: UserStatus,
+  reason: string | null
+): Promise<UserRow | null> {
+  const result = await query<UserRow>(
+    `UPDATE users SET status = $2, status_reason = $3, status_changed_at = now(), updated_at = now()
+     WHERE id = $1
+     RETURNING id, email, password_hash, name, role, status, status_reason, email_verified_at, created_at, updated_at`,
+    [id, status, reason]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function listUsers(params: {
+  status?: UserStatus;
+  page: number;
+  pageSize: number;
+}): Promise<{ items: UserRow[]; total: number }> {
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+
+  if (params.status) {
+    values.push(params.status);
+    conditions.push(`status = $${values.length}`);
+  }
+  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const countResult = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM users ${whereClause}`,
+    values
+  );
+  const total = Number(countResult.rows[0]?.count ?? 0);
+
+  values.push(params.pageSize, (params.page - 1) * params.pageSize);
+  const itemsResult = await query<UserRow>(
+    `SELECT id, email, password_hash, name, role, status, status_reason, email_verified_at, created_at, updated_at
+     FROM users ${whereClause}
+     ORDER BY created_at DESC
+     LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    values
+  );
+  return { items: itemsResult.rows, total };
 }

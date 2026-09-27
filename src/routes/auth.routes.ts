@@ -2,14 +2,14 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import {
   register, login, me, becomeSeller, logout, patchProfile, patchPassword,
-  verifyEmail, resendVerification, forgotPassword, resetPassword,
+  verifyEmail, resendVerification, forgotPassword, resetPassword, deactivateAccount, 
 } from "../controllers/auth.controller";
 import { validate } from "../middlewares/validate";
 import { asyncHandler } from "../middlewares/asyncHandler";
 import { requireAuth } from "../middlewares/auth.middleware";
 import {
   registerSchema, loginSchema, updateProfileSchema, changePasswordSchema,
-  verifyEmailSchema, forgotPasswordSchema, resetPasswordSchema,
+  verifyEmailSchema, forgotPasswordSchema, resetPasswordSchema, deactivateAccountSchema
 } from "../validators/auth.validator";
 
 const router = Router();
@@ -27,6 +27,7 @@ router.post("/register", limiter, validate(registerSchema), asyncHandler(registe
 router.post("/login", limiter, validate(loginSchema), asyncHandler(login));
 router.patch("/me", requireAuth, validate(updateProfileSchema), asyncHandler(patchProfile));
 router.patch("/me/password", requireAuth, validate(changePasswordSchema), asyncHandler(patchPassword));
+router.post("/me/deactivate", requireAuth, validate(deactivateAccountSchema), asyncHandler(deactivateAccount));
 router.post("/logout", requireAuth, asyncHandler(logout));
 router.post("/become-seller", requireAuth, asyncHandler(becomeSeller));
 

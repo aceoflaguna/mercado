@@ -9,17 +9,11 @@ import {
   invalidateTokensForUser,
 } from "../repositories/verification-tokens.repository";
 import {
-  createUser,
-  findUserByEmail,
-  findUserById,
-  updateUserRole,
-  updateUserProfile,
-  updateUserPassword,
-  markEmailVerified,
-  toPublicUser,
+  createUser, findUserByEmail, findUserById, updateUserRole, updateUserProfile,
+  updateUserPassword, markEmailVerified, updateUserStatus, toPublicUser,
 } from "../repositories/users.repository";
 
-import { UnauthorizedError, NotFoundError, BadRequestError } from "../types/errors";
+import { UnauthorizedError, NotFoundError, BadRequestError, ForbiddenError } from "../types/errors";
 
 export async function register(req: Request, res: Response): Promise<void> {
   const { email, password, name } = req.body as { email: string; password: string; name: string };
@@ -55,12 +49,27 @@ export async function login(req: Request, res: Response): Promise<void> {
     throw new UnauthorizedError("Invalid email or password");
   }
 
-  const token = await createSession(user.id, {
+  if (user.status === "suspended" || user.status === "banned") {
+    throw new ForbiddenError(
+      user.status_reason
+        ? `Your account is ${user.status}: ${user.status_reason}`
+        : `Your account is ${user.status}.`
+    );
+  }
+
+  let effectiveUser = user;
+  if (user.status === "deactivated") {
+    // Logging back in is the reactivation action — matches Instagram/Twitter-style
+    // "deactivate, come back anytime" semantics rather than a hard delete.
+    effectiveUser = (await updateUserStatus(user.id, "active", null))!;
+  }
+
+  const token = await createSession(effectiveUser.id, {
     userAgent: req.headers["user-agent"],
     ip: req.ip,
   });
 
-  res.status(200).json({ status: "ok", data: { user: toPublicUser(user), token } });
+  res.status(200).json({ status: "ok", data: { user: toPublicUser(effectiveUser), token } });
 }
 
 export async function me(req: Request, res: Response): Promise<void> {
@@ -203,4 +212,18 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
   const user = await findUserById(record.user_id);
 
   res.status(200).json({ status: "ok", data: { user: toPublicUser(user!), token: sessionToken } });
+}
+
+export async function deactivateAccount(req: Request, res: Response): Promise<void> {
+  const { password } = req.body as { password: string };
+  const user = await findUserById(req.user!.sub);
+  if (!user) throw new NotFoundError("User not found");
+
+  const valid = await verifyPassword(user.password_hash, password);
+  if (!valid) throw new UnauthorizedError("Password is incorrect");
+
+  await updateUserStatus(user.id, "deactivated", null);
+  await deleteAllSessionsForUser(user.id); // logs out this device and every other one immediately
+
+  res.status(200).json({ status: "ok", message: "Account deactivated. Log in again anytime to reactivate." });
 }

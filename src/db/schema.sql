@@ -164,3 +164,9 @@ CREATE TABLE IF NOT EXISTS verification_tokens (
 );
 
 CREATE INDEX IF NOT EXISTS idx_verification_tokens_user_id ON verification_tokens(user_id);
+
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'
+  CHECK (status IN ('active', 'suspended', 'banned', 'deactivated'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status_reason TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status_changed_at TIMESTAMPTZ;

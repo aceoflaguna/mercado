@@ -24,8 +24,16 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       next(new UnauthorizedError("Invalid or expired session"));
       return;
     }
+    if (user.status === "suspended" || user.status === "banned") {
+      next(new ForbiddenError(
+        user.status_reason
+          ? `Your account is ${user.status}: ${user.status_reason}`
+          : `Your account is ${user.status}.`
+      ));
+      return;
+    }
     req.user = { sub: user.id, role: user.role };
-    touchSession(session.id).catch(() => {}); // best-effort, don't block the request on this
+    touchSession(session.id).catch(() => {});
     next();
   } catch (err) {
     next(err);

@@ -8,6 +8,7 @@ import ordersRoutes from "./orders.routes";
 import addressesRoutes from "./addresses.routes";
 import auditLogsRoutes from "./audit-logs.routes";
 import conversationsRoutes from "./conversations.routes";
+import adminRoutes from "./admin.routes";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use("/orders", ordersRoutes);
 router.use("/addresses", addressesRoutes);
 router.use("/audit-logs", auditLogsRoutes);
 router.use("/conversations", conversationsRoutes);
+router.use("/admin", adminRoutes);
 
 export default router;
