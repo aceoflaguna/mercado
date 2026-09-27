@@ -12,3 +12,12 @@ export const checkoutSchema = z
 export const updateOrderStatusSchema = z.object({
   status: z.literal("completed"),
 });
+
+export const listOrdersQuerySchema = z.object({
+  status: z.enum(["pending", "paid", "shipped", "completed", "cancelled"]).optional(),
+  search: z.string().trim().max(200).optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(50).default(10),
+});

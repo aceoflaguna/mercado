@@ -10,6 +10,7 @@ export interface UserRow {
   role: UserRole;
   created_at: Date;
   updated_at: Date;
+  email_verified_at: Date | null;
 }
 
 export type PublicUser = Omit<UserRow, "password_hash">;
@@ -29,7 +30,7 @@ export async function createUser(params: {
   const result = await query<UserRow>(
     `INSERT INTO users (email, password_hash, name, role)
      VALUES ($1, $2, $3, $4)
-     RETURNING id, email, password_hash, name, role, created_at, updated_at`,
+     RETURNING id, email, password_hash, name, role, email_verified_at, created_at, updated_at`,
     [email, passwordHash, name, role]
   );
   return result.rows[0];
@@ -37,7 +38,7 @@ export async function createUser(params: {
 
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
   const result = await query<UserRow>(
-    `SELECT id, email, password_hash, name, role, created_at, updated_at
+    `SELECT id, email, password_hash, name, role, email_verified_at, created_at, updated_at
      FROM users WHERE email = $1`,
     [email]
   );
@@ -46,7 +47,7 @@ export async function findUserByEmail(email: string): Promise<UserRow | null> {
 
 export async function findUserById(id: string): Promise<UserRow | null> {
   const result = await query<UserRow>(
-    `SELECT id, email, password_hash, name, role, created_at, updated_at
+    `SELECT id, email, password_hash, name, role, email_verified_at, created_at, updated_at
      FROM users WHERE id = $1`,
     [id]
   );
@@ -57,7 +58,7 @@ export async function updateUserRole(id: string, role: UserRole): Promise<UserRo
   const result = await query<UserRow>(
     `UPDATE users SET role = $2, updated_at = now()
      WHERE id = $1
-     RETURNING id, email, password_hash, name, role, created_at, updated_at`,
+     RETURNING id, email, password_hash, name, role, email_verified_at, created_at, updated_at`,
     [id, role]
   );
   return result.rows[0] ?? null;
@@ -67,7 +68,7 @@ export async function updateUserProfile(id: string, name: string): Promise<UserR
   const result = await query<UserRow>(
     `UPDATE users SET name = $2, updated_at = now()
      WHERE id = $1
-     RETURNING id, email, password_hash, name, role, created_at, updated_at`,
+     RETURNING id, email, password_hash, name, role,  email_verified_at, created_at, updated_at`,
     [id, name]
   );
   return result.rows[0] ?? null;
@@ -75,4 +76,14 @@ export async function updateUserProfile(id: string, name: string): Promise<UserR
 
 export async function updateUserPassword(id: string, passwordHash: string): Promise<void> {
   await query(`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`, [id, passwordHash]);
+}
+
+export async function markEmailVerified(id: string): Promise<UserRow | null> {
+  const result = await query<UserRow>(
+    `UPDATE users SET email_verified_at = now(), updated_at = now()
+     WHERE id = $1
+     RETURNING id, email, password_hash, name, role, email_verified_at, created_at, updated_at`,
+    [id]
+  );
+  return result.rows[0] ?? null;
 }

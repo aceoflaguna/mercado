@@ -90,13 +90,72 @@ export async function checkout(userId: string, shippingAddress: string): Promise
   });
 }
 
-export async function listOrdersForUser(userId: string): Promise<OrderRow[]> {
-  const result = await query<OrderRow>(
-    `SELECT id, user_id, status, total_cents, shipping_address, created_at, updated_at
-     FROM orders WHERE user_id = $1 ORDER BY created_at DESC`,
-    [userId]
+// export async function listOrdersForUser(userId: string): Promise<OrderRow[]> {
+//   const result = await query<OrderRow>(
+//     `SELECT id, user_id, status, total_cents, shipping_address, created_at, updated_at
+//      FROM orders WHERE user_id = $1 ORDER BY created_at DESC`,
+//     [userId]
+//   );
+//   return result.rows;
+// }
+
+export interface ListOrdersParams {
+  status?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+  pageSize: number;
+}
+
+export async function listOrdersForUser(
+  userId: string,
+  params: ListOrdersParams
+): Promise<{ items: OrderRow[]; total: number }> {
+  const { status, search, dateFrom, dateTo, page, pageSize } = params;
+  const conditions: string[] = ["o.user_id = $1"];
+  const values: unknown[] = [userId];
+
+  if (status) {
+    values.push(status);
+    conditions.push(`o.status = $${values.length}`);
+  }
+  if (dateFrom) {
+    values.push(dateFrom);
+    conditions.push(`o.created_at >= $${values.length}`);
+  }
+  if (dateTo) {
+    values.push(dateTo);
+    conditions.push(`o.created_at <= $${values.length}::date + interval '1 day'`);
+  }
+
+  let searchClause = "";
+  if (search) {
+    values.push(`%${search}%`);
+    searchClause = `AND EXISTS (
+      SELECT 1 FROM order_items oi WHERE oi.order_id = o.id AND oi.product_name ILIKE $${values.length}
+    )`;
+  }
+
+  const whereClause = conditions.join(" AND ");
+
+  const countResult = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM orders o WHERE ${whereClause} ${searchClause}`,
+    values
   );
-  return result.rows;
+  const total = Number(countResult.rows[0]?.count ?? 0);
+
+  values.push(pageSize, (page - 1) * pageSize);
+  const itemsResult = await query<OrderRow>(
+    `SELECT o.id, o.user_id, o.status, o.total_cents, o.shipping_address, o.created_at, o.updated_at
+     FROM orders o
+     WHERE ${whereClause} ${searchClause}
+     ORDER BY o.created_at DESC
+     LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    values
+  );
+
+  return { items: itemsResult.rows, total };
 }
 
 export async function findOrderById(orderId: string, userId: string): Promise<OrderRow | null> {

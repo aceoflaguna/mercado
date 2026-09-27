@@ -54,9 +54,35 @@ export async function postCheckout(req: Request, res: Response): Promise<void> {
   res.status(201).json({ status: "ok", data: { ...order, items } });
 }
 
+// export async function getOrders(req: Request, res: Response): Promise<void> {
+//   const orders = await listOrdersForUser(req.user!.sub);
+//   res.status(200).json({ status: "ok", data: orders });
+// }
+
 export async function getOrders(req: Request, res: Response): Promise<void> {
-  const orders = await listOrdersForUser(req.user!.sub);
-  res.status(200).json({ status: "ok", data: orders });
+  const { status, search, dateFrom, dateTo, page, pageSize } = req.query as unknown as {
+    status?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    page: number;
+    pageSize: number;
+  };
+
+  const { items, total } = await listOrdersForUser(req.user!.sub, {
+    status,
+    search,
+    dateFrom,
+    dateTo,
+    page,
+    pageSize,
+  });
+
+  res.status(200).json({
+    status: "ok",
+    data: items,
+    pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+  });
 }
 
 export async function getOrderById(req: Request, res: Response): Promise<void> {

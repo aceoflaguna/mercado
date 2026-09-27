@@ -1,10 +1,16 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { register, login, me, becomeSeller, logout, patchProfile, patchPassword } from "../controllers/auth.controller";
+import {
+  register, login, me, becomeSeller, logout, patchProfile, patchPassword,
+  verifyEmail, resendVerification, forgotPassword, resetPassword,
+} from "../controllers/auth.controller";
 import { validate } from "../middlewares/validate";
 import { asyncHandler } from "../middlewares/asyncHandler";
 import { requireAuth } from "../middlewares/auth.middleware";
-import { registerSchema, loginSchema, updateProfileSchema, changePasswordSchema } from "../validators/auth.validator";
+import {
+  registerSchema, loginSchema, updateProfileSchema, changePasswordSchema,
+  verifyEmailSchema, forgotPasswordSchema, resetPasswordSchema,
+} from "../validators/auth.validator";
 
 const router = Router();
 
@@ -23,5 +29,10 @@ router.patch("/me", requireAuth, validate(updateProfileSchema), asyncHandler(pat
 router.patch("/me/password", requireAuth, validate(changePasswordSchema), asyncHandler(patchPassword));
 router.post("/logout", requireAuth, asyncHandler(logout));
 router.post("/become-seller", requireAuth, asyncHandler(becomeSeller));
+
+router.post("/verify-email", validate(verifyEmailSchema), asyncHandler(verifyEmail));
+router.post("/resend-verification", requireAuth, asyncHandler(resendVerification));
+router.post("/forgot-password", limiter, validate(forgotPasswordSchema), asyncHandler(forgotPassword));
+router.post("/reset-password", validate(resetPasswordSchema), asyncHandler(resetPassword));
 
 export default router;
