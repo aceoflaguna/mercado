@@ -6,7 +6,15 @@ import {
   updateProduct,
   deleteProduct,
 } from "../repositories/products.repository";
-import { NotFoundError, ForbiddenError } from "../types/errors";
+import { NotFoundError, ForbiddenError, BadRequestError } from "../types/errors";
+
+import {
+  listImagesForProduct,
+  addProductImage,
+  findImageById,
+  deleteProductImage as deleteProductImageRow,
+} from "../repositories/product-images.repository";
+
 
 function slugify(name: string): string {
   const base = name
@@ -41,7 +49,8 @@ export async function getProductById(req: Request, res: Response): Promise<void>
   if (!product || !product.is_active) {
     throw new NotFoundError("Product not found");
   }
-  res.status(200).json({ status: "ok", data: product });
+  const images = await listImagesForProduct(product.id);
+  res.status(200).json({ status: "ok", data: { ...product, images } });
 }
 
 export async function postProduct(req: Request, res: Response): Promise<void> {
@@ -94,5 +103,37 @@ export async function removeProduct(req: Request, res: Response): Promise<void> 
   }
 
   await deleteProduct(req.params.id, existing.seller_id);
+  res.status(204).send();
+}
+
+export async function postProductImage(req: Request, res: Response): Promise<void> {
+  const sellerId = req.user!.sub;
+  const product = await findProductById(req.params.id);
+  if (!product) throw new NotFoundError("Product not found");
+  if (product.seller_id !== sellerId && req.user!.role !== "admin") {
+    throw new ForbiddenError("You do not own this product");
+  }
+
+  const { url } = req.body as { url: string };
+  try {
+    const image = await addProductImage(product.id, url);
+    res.status(201).json({ status: "ok", data: image });
+  } catch (err) {
+    throw new BadRequestError(err instanceof Error ? err.message : "Couldn't add image");
+  }
+}
+
+export async function removeProductImage(req: Request, res: Response): Promise<void> {
+  const sellerId = req.user!.sub;
+  const product = await findProductById(req.params.id);
+  if (!product) throw new NotFoundError("Product not found");
+  if (product.seller_id !== sellerId && req.user!.role !== "admin") {
+    throw new ForbiddenError("You do not own this product");
+  }
+
+  const image = await findImageById(req.params.imageId, product.id);
+  if (!image) throw new NotFoundError("Image not found");
+
+  await deleteProductImageRow(image.id, product.id);
   res.status(204).send();
 }

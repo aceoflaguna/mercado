@@ -1,10 +1,7 @@
 import { Router } from "express";
 import {
-  getProducts,
-  getProductById,
-  postProduct,
-  patchProduct,
-  removeProduct,
+  getProducts, getProductById, postProduct, patchProduct, removeProduct,
+  postProductImage, removeProductImage,
 } from "../controllers/products.controller";
 import { asyncHandler } from "../middlewares/asyncHandler";
 import { validate } from "../middlewares/validate";
@@ -14,7 +11,7 @@ import {
   updateProductSchema,
   listProductsQuerySchema,
 } from "../validators/product.validator";
-
+import { addProductImageSchema } from "../validators/product-image.validator";
 import rateLimit from "express-rate-limit";
 
 // Slow down attacks without punishing normal use.
@@ -46,5 +43,18 @@ router.patch(
   asyncHandler(patchProduct)
 );
 router.delete("/:id", requireAuth, requireRole("seller", "admin"), asyncHandler(removeProduct));
+router.post(
+  "/:id/images",
+  requireAuth,
+  requireRole("seller", "admin"),
+  validate(addProductImageSchema),
+  asyncHandler(postProductImage)
+);
+router.delete(
+  "/:id/images/:imageId",
+  requireAuth,
+  requireRole("seller", "admin"),
+  asyncHandler(removeProductImage)
+);
 
 export default router;
