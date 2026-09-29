@@ -34,9 +34,9 @@ async function getTransporter(): Promise<Transporter> {
   return transporterPromise;
 }
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+export async function sendEmail(to: string, subject: string, html: string, text?: string): Promise<void> {
   const transporter = await getTransporter();
-  const info = await transporter.sendMail({ from: env.smtp.from, to, subject, html });
+  const info = await transporter.sendMail({ from: env.smtp.from, to, subject, html, text });
 
   const previewUrl = nodemailer.getTestMessageUrl(info);
   if (previewUrl) {

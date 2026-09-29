@@ -14,6 +14,12 @@ import {
 } from "../repositories/users.repository";
 
 import { UnauthorizedError, NotFoundError, BadRequestError, ForbiddenError } from "../types/errors";
+import {
+  verificationEmailHtml,
+  verificationEmailText,
+  passwordResetEmailHtml,
+  passwordResetEmailText,
+} from "../utils/email-templates";
 
 export async function register(req: Request, res: Response): Promise<void> {
   const { email, password, name } = req.body as { email: string; password: string; name: string };
@@ -26,12 +32,12 @@ export async function register(req: Request, res: Response): Promise<void> {
   });
 
   const verifyToken = await createVerificationToken(user.id, "email_verification");
+  const verifyUrl = `${env.frontendUrl}/#/verify-email?token=${verifyToken}`;
   sendEmail(
     user.email,
     "Verify your Mercado email",
-    `<p>Welcome to Mercado! Confirm your email to finish setting up your account.</p>
-     <p><a href="${env.frontendUrl}/#/verify-email?token=${verifyToken}">Verify my email</a></p>
-     <p>This link expires in 24 hours.</p>`
+    verificationEmailHtml(user.name, verifyUrl),
+    verificationEmailText(user.name, verifyUrl)
   ).catch((err) => console.error("Failed to send verification email:", err));
 
   res.status(201).json({ status: "ok", data: { user: toPublicUser(user), token } });
@@ -164,10 +170,12 @@ export async function resendVerification(req: Request, res: Response): Promise<v
 
   await invalidateTokensForUser(user.id, "email_verification");
   const token = await createVerificationToken(user.id, "email_verification");
+  const verifyUrl = `${env.frontendUrl}/#/verify-email?token=${token}`;
   await sendEmail(
     user.email,
     "Verify your Mercado email",
-    `<p><a href="${env.frontendUrl}/#/verify-email?token=${token}">Verify my email</a></p>`
+    verificationEmailHtml(user.name, verifyUrl),
+    verificationEmailText(user.name, verifyUrl)
   );
   res.status(200).json({ status: "ok", message: "Verification email sent." });
 }
@@ -181,12 +189,12 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
   if (user) {
     await invalidateTokensForUser(user.id, "password_reset");
     const token = await createVerificationToken(user.id, "password_reset");
+    const resetUrl = `${env.frontendUrl}/#/reset-password?token=${token}`;
     sendEmail(
       user.email,
       "Reset your Mercado password",
-      `<p>Someone requested a password reset for this account. If this wasn't you, ignore this email.</p>
-       <p><a href="${env.frontendUrl}/#/reset-password?token=${token}">Reset my password</a></p>
-       <p>This link expires in 1 hour.</p>`
+      passwordResetEmailHtml(user.name, resetUrl),
+      passwordResetEmailText(user.name, resetUrl)
     ).catch((err) => console.error("Failed to send password reset email:", err));
   }
 
