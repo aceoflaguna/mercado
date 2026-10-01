@@ -9,6 +9,7 @@ import addressesRoutes from "./addresses.routes";
 import auditLogsRoutes from "./audit-logs.routes";
 import conversationsRoutes from "./conversations.routes";
 import adminRoutes from "./admin.routes";
+import announcementsRoutes from "./announcements.routes";
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use("/addresses", addressesRoutes);
 router.use("/audit-logs", auditLogsRoutes);
 router.use("/conversations", conversationsRoutes);
 router.use("/admin", adminRoutes);
+router.use("/announcements", announcementsRoutes);
 
 export default router;

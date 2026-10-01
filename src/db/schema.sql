@@ -180,3 +180,16 @@ CREATE TABLE IF NOT EXISTS product_images (
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images(product_id);
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  author_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title         VARCHAR(200) NOT NULL,
+  body          TEXT NOT NULL,
+  is_published  BOOLEAN NOT NULL DEFAULT true,
+  is_pinned     BOOLEAN NOT NULL DEFAULT false,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_announcements_feed ON announcements(is_published, is_pinned DESC, created_at DESC);
